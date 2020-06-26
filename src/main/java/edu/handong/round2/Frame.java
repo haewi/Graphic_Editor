@@ -9,6 +9,7 @@ import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
+import java.util.Stack;
 
 import javax.swing.*;
 import javax.swing.event.*;
@@ -28,7 +29,7 @@ public class Frame {
 	
 	// 현재 굵기와 그 spinner
 	int stroke;
-	JSpinner spinner;
+	JSlider slider;
 	
 	// 현재 색깔
 	Color color;
@@ -36,10 +37,16 @@ public class Frame {
 	// 처음으로 선택된 지점
 	Point initPoint;
 
+	// 기본 세팅
 	JFrame mainFrame;
 	JToolBar toolbar;
 	Canvas canvas;
+	
+	// 현재까지 그려진 도형들
 	ArrayList<ShapeObject> shapes = new ArrayList<ShapeObject>();
+	
+	Stack<ShapeObject> shapeStack = new Stack<ShapeObject>();
+	Stack<ShapeObject> deleteShape = new Stack<ShapeObject>();
 	
 	public Frame() {
 		mainFrame = new JFrame("그림판");
@@ -60,8 +67,8 @@ public class Frame {
 
 		// Toolbar 기본 설정
 		toolbar = new JToolBar();
-//		toolbar.setBounds(0, 0, 800, 40);
-		toolbar.setBounds(700, 0, 100, 600);
+		toolbar.setBounds(0, 0, 800, 80);
+//		toolbar.setBounds(700, 0, 100, 600);
 		toolbar.setLayout(new BoxLayout(toolbar, BoxLayout.Y_AXIS));
 //		toolbar.setLayout(new FlowLayout());
 		toolbar.setBackground(new Color(218, 207, 251));
@@ -76,7 +83,8 @@ public class Frame {
 			Button tempBtn;
 			tempBtn = new Button(toolbarLabels[i]);
 			tempBtn.setSize(80, 60);
-			tempBtn.setLocation(14, 5+50*i);
+			tempBtn.setLocation(10+i*80, 10);
+//			tempBtn.setLocation(14, 5+50*i);
 			tempBtn.addActionListener(listener);
 			tempBtn.setFont(new Font("Chalkboard", Font.PLAIN, 15));
 //			tempBtn.setForeground(Color.black);
@@ -87,24 +95,30 @@ public class Frame {
 		for(Button b: toolButton)
 			toolbar.add(b);
 		
-		// spinner 넣기
-		spinner = new JSpinner();
-		spinner.addChangeListener(new ChangeListen());
-		spinner.setModel(new SpinnerNumberModel(3, 1, 100, 1));
-		spinner.setBounds(14, 5+50*4+35, 80, 60);
-		stroke = (int) spinner.getValue();
+		// slider 넣기
+		slider = new JSlider(0, 40, 3);
+		slider.addChangeListener(new ChangeListen());
+		slider.setMajorTickSpacing(10);
+		slider.setMinorTickSpacing(1);
+		slider.setPaintTicks(true);
+		slider.setPaintLabels(true);
+		slider.setSnapToTicks(true);
+		slider.setBounds(10+80*5+30, 10, 100, 60);
+//		slider.setBounds(0, 5+50*5+20, 100, 60);
+		stroke = (int) slider.getValue();
 		
 		Label label = new Label("굵기");
 		label.setFont(new Font("나눔손글씨 펜", Font.PLAIN, 15));
-		label.setBounds(45, 8+50*4, 80, 30);
+		label.setBounds(10+80*5, 20, 30, 30);
+//		label.setBounds(40, 8+50*5+10, 80, 30);
 		toolbar.add(label);
-		toolbar.add(spinner);
+		toolbar.add(slider);
 		
 		// canvas
 		canvas.addMouseListener(new MouseListen());
 		canvas.addMouseMotionListener(new MouseListen());
-//		canvas.setBounds(0, 50, 800, 560);
-		canvas.setBounds(0, 0, 700, 600);
+		canvas.setBounds(0, 100, 800, 560);
+//		canvas.setBounds(0, 0, 700, 600);
 		canvas.setBackground(Color.white);
 		mainFrame.add(canvas);
 	}
@@ -326,7 +340,6 @@ public class Frame {
 				shapes.get(shapes.size()-1).height = Math.abs(shapes.get(shapes.size()-1).start.y - shapes.get(shapes.size()-1).end.y);
 				
 //				System.out.println(initPoint.x + " " + initPoint.y + " " + e.getPoint().x + " " + e.getPoint().y);
-				
 //				System.out.println(shapes.get(shapes.size()-1).start.x + " " + shapes.get(shapes.size()-1).start.y + " " + shapes.get(shapes.size()-1).end.x + " " + shapes.get(shapes.size()-1).end.y);
 				
 				canvas.repaint();
@@ -356,7 +369,7 @@ public class Frame {
 
 		@Override
 		public void stateChanged(ChangeEvent e) {
-			stroke = (int) spinner.getValue();
+			stroke = (int) slider.getValue();
 		}
 		
 	}
