@@ -31,6 +31,8 @@ public class Frame {
 	public static final int PEN = 6;
 	public static final int ERASER = 7;
 	public static final int SELECT = 8;
+	public static final int COPY = 9;
+	public static final int PASTE = 10;
 
 	// 선택한 기능
 	public int function = DEFAULT;
@@ -56,8 +58,9 @@ public class Frame {
 	Stack<ShapeObject> deleteShape = new Stack<ShapeObject>();
 	
 	// 선택된 도형들의 index, select
-	ArrayList<Integer> select;
+	ArrayList<Integer> select = new ArrayList<Integer>();//null;
 	boolean move=false;
+	ShapeObject drag = new ShapeObject(); 
 	
 
 	public Frame() {
@@ -142,7 +145,7 @@ public class Frame {
 		toolbar.add(btn);
 		
 		// toolbar용 버튼 - 2번째 줄
-		toolbarLabels = new String[] {"Pen", "Color", "Eraser", "Select"};
+		toolbarLabels = new String[] {"Pen", "Color", "Eraser", "Select", "Copy", "Paste"};
 		for(int i=0; i<toolbarLabels.length; i++) {
 			Button tempBtn;
 			tempBtn = new Button(toolbarLabels[i]);
@@ -176,11 +179,14 @@ public class Frame {
 
 			for(int j=0; j<shapes.size(); j++) {
 				ShapeObject so = shapes.get(j);
-				g2.setColor(so.penColor);
+				if(!select.isEmpty() && select.contains(j)) {
+					g2.setColor(new Color(68, 178, 250));
+				}
+				else {
+					g2.setColor(so.penColor);
+				}
 				g2.setStroke(new BasicStroke(so.stroke));
 //				g2.setStroke(new BasicStroke(so.stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1.0f, new float[] {9}, 3));
-				g2.setColor(so.penColor);
-
 				if(so.shape==LINE) {
 					g2.drawLine(so.start.x, so.start.y, so.end.x, so.end.y);
 				}
@@ -197,6 +203,7 @@ public class Frame {
 //					System.out.println("doing size: " + so.doing.size());
 					
 					if(so.doing.isEmpty()) {
+//						System.out.println("Polyline x.length: " + so.x.length);
 						g2.drawPolyline(so.x, so.y, so.x.length);
 					} // polyline이 완성되었을 때
 					else {	
@@ -254,16 +261,16 @@ public class Frame {
 							x[i] = so.doing.get(i).x;
 							y[i] = so.doing.get(i).y;
 						}
-
+						
 						g2.drawPolyline(x, y, x.length);
-
 					} // 지우개가 완성되기 전 
 				}
-				else if(function==SELECT) {
-					g2.setColor(Color.LIGHT_GRAY);
-					g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1.0f, new float[] {9}, 3));
-					g2.drawRect(Math.min(so.start.x, so.end.x), Math.min(so.start.y, so.end.y),Math.abs(so.start.x-so.end.x), Math.abs(so.start.y-so.end.y));
-				}
+			}
+			
+			if(drag.shape == SELECT) {
+				g2.setColor(Color.LIGHT_GRAY);
+				g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1.0f, new float[] {9}, 3));
+				g2.drawRect(Math.min(drag.start.x, drag.end.x), Math.min(drag.start.y, drag.end.y),Math.abs(drag.start.x-drag.end.x), Math.abs(drag.start.y-drag.end.y));
 			}
 		}
 
@@ -389,7 +396,16 @@ public class Frame {
 					function = SELECT;
 					mode.setText("SELECT");
 				}
-				
+			}
+			else if(str.equals("Copy")) {
+				if(function == COPY) {
+					function = DEFAULT;
+					mode.setText("DEFAULT");
+				}
+				else {
+					function = COPY;
+					mode.setText("SELECT");
+				}
 			}
 			
 			if(function != POLYLINE) {
@@ -424,7 +440,6 @@ public class Frame {
 				newShape.shape = LINE;
 				newShape.start = e.getPoint();
 				shapes.add(newShape);
-//				deleteShape.clear();
 			}
 			else if(function == RECT) {
 				newShape.shape = RECT;
@@ -432,7 +447,6 @@ public class Frame {
 				newShape.end = e.getPoint();
 				initPoint = e.getPoint();
 				shapes.add(newShape);
-//				deleteShape.clear();
 			}
 			else if(function == CIRCLE) {
 				newShape.shape = CIRCLE;
@@ -440,7 +454,6 @@ public class Frame {
 				newShape.end = e.getPoint();
 				initPoint = e.getPoint();
 				shapes.add(newShape);
-//				deleteShape.clear();
 			}
 			else if(function == POLYLINE) {
 				if(shapes.isEmpty()) {
@@ -480,7 +493,6 @@ public class Frame {
 					}
 
 				} // n번째 점이면
-//				deleteShape.clear();
 			}
 			else if(function == ERASER) {
 				if(shapes.isEmpty()) {
@@ -500,7 +512,6 @@ public class Frame {
 						newShape = shapes.get(shapes.size()-1);
 					}
 				} // n번째 점이면
-//				deleteShape.clear();
 				newShape.penColor = Color.white;
 			}
 			else if(function == SELECT) {
@@ -508,26 +519,30 @@ public class Frame {
 				if(move) {
 					if(is_inBoundary(e.getPoint())) { // 영역 안이면
 						for(int i=0; i<select.size(); i++) {
-							shapes.get(shapes.size()-1).doing.add(e.getPoint()); // 이동 위치 저장
+							drag.doing.add(e.getPoint()); // 이동 위치 저장
 						}
 					}
 					else { // 영역 밖이면 (도형 다시 선택)
 						select.clear();
-						newShape.shape = SELECT;
-						newShape.start = e.getPoint();
-						newShape.end = e.getPoint();
-						shapes.add(newShape);
+						drag.shape = SELECT;
+						drag.start = e.getPoint();
+						drag.end = e.getPoint();
 //						System.out.println("select.size(): " + select.size());
 						move=false;
 					}
 				}
 				else {
 					// 영역 안의 도형들 선택
-					newShape.shape = SELECT;
-					newShape.start = e.getPoint();
-					newShape.end = e.getPoint();
-					shapes.add(newShape);
+					drag.shape = SELECT;
+					drag.start = e.getPoint();
+					drag.end = e.getPoint();
 				}
+			}
+			else if(function == COPY) {
+				
+			}
+			else if(function == PASTE) {
+				if(select.isEmpty()) return;
 			}
 		}
 
@@ -544,19 +559,7 @@ public class Frame {
 				canvas.repaint();
 
 			}
-			else if(function==RECT){
-				shapes.get(shapes.size()-1).start.x = Math.min(initPoint.x, e.getPoint().x);
-				shapes.get(shapes.size()-1).start.y = Math.min(initPoint.y, e.getPoint().y);
-
-				shapes.get(shapes.size()-1).end.x = Math.max(initPoint.x, e.getPoint().x);
-				shapes.get(shapes.size()-1).end.y = Math.max(initPoint.y, e.getPoint().y);
-
-				shapes.get(shapes.size()-1).width = Math.abs(shapes.get(shapes.size()-1).start.x - shapes.get(shapes.size()-1).end.x);
-				shapes.get(shapes.size()-1).height = Math.abs(shapes.get(shapes.size()-1).start.y - shapes.get(shapes.size()-1).end.y);
-
-				canvas.repaint();
-			}
-			else if(function == CIRCLE) {
+			else if(function==RECT || function == CIRCLE){
 				shapes.get(shapes.size()-1).start.x = Math.min(initPoint.x, e.getPoint().x);
 				shapes.get(shapes.size()-1).start.y = Math.min(initPoint.y, e.getPoint().y);
 
@@ -598,9 +601,10 @@ public class Frame {
 				else { // 이동시킬 도형 저장
 					select = selected();
 					if(!select.isEmpty()) move = true;
-					shapes.pop();
 				}
 				
+				drag.doing.clear();
+				drag.shape =0;
 				canvas.repaint();
 //				System.out.println("final select: " + select.size());
 			}
@@ -617,7 +621,7 @@ public class Frame {
 				shapes.get(shapes.size()-1).end = e.getPoint();
 				canvas.repaint();
 			}
-			else if(function == RECT) {
+			else if(function == RECT || function == CIRCLE) {
 				shapes.get(shapes.size()-1).start.x = Math.min(initPoint.x, e.getPoint().x);
 				shapes.get(shapes.size()-1).start.y = Math.min(initPoint.y, e.getPoint().y);
 
@@ -632,19 +636,6 @@ public class Frame {
 
 				canvas.repaint();
 			}
-			else if(function == CIRCLE) {
-
-				shapes.get(shapes.size()-1).start.x = Math.min(initPoint.x, e.getPoint().x);
-				shapes.get(shapes.size()-1).start.y = Math.min(initPoint.y, e.getPoint().y);
-
-				shapes.get(shapes.size()-1).end.x = Math.max(initPoint.x, e.getPoint().x);
-				shapes.get(shapes.size()-1).end.y = Math.max(initPoint.y, e.getPoint().y);
-
-				shapes.get(shapes.size()-1).width = Math.abs(shapes.get(shapes.size()-1).start.x - shapes.get(shapes.size()-1).end.x);
-				shapes.get(shapes.size()-1).height = Math.abs(shapes.get(shapes.size()-1).start.y - shapes.get(shapes.size()-1).end.y);
-
-				canvas.repaint();
-			}
 			else if(function == PEN) {
 				shapes.get(shapes.size()-1).doing.add(e.getPoint());
 				canvas.repaint();
@@ -654,23 +645,23 @@ public class Frame {
 				canvas.repaint();
 			}
 			else if(function == SELECT) {
-				if(move) {
+				if(move) { 
+					drag.doing.add(e.getPoint()); // 이동하는 위치 저장
 					for(int i=0; i<select.size(); i++) {
-						shapes.get(shapes.size()-1).doing.add(e.getPoint()); // 이동하는 위치 저장
 						moveShape(shapes.get(select.get(i)), e.getPoint());
 //						System.out.println("moved shape: " + shapes.get(select.get(i)).shape);
 					}
 				}
 				else {
 					// 선택될 영역을 보여줄 사각형
-					shapes.get(shapes.size()-1).start.x = Math.min(initPoint.x, e.getPoint().x);
-					shapes.get(shapes.size()-1).start.y = Math.min(initPoint.y, e.getPoint().y);
+					drag.start.x = Math.min(initPoint.x, e.getPoint().x);
+					drag.start.y = Math.min(initPoint.y, e.getPoint().y);
 					
-					shapes.get(shapes.size()-1).end.x = Math.max(initPoint.x, e.getPoint().x);
-					shapes.get(shapes.size()-1).end.y = Math.max(initPoint.y, e.getPoint().y);
+					drag.end.x = Math.max(initPoint.x, e.getPoint().x);
+					drag.end.y = Math.max(initPoint.y, e.getPoint().y);
 						
-					shapes.get(shapes.size()-1).width = Math.abs(shapes.get(shapes.size()-1).start.x - shapes.get(shapes.size()-1).end.x);
-					shapes.get(shapes.size()-1).height = Math.abs(shapes.get(shapes.size()-1).start.y - shapes.get(shapes.size()-1).end.y);
+					drag.width = Math.abs(drag.start.x - drag.end.x);
+					drag.height = Math.abs(drag.start.y - drag.end.y);
 					
 					
 					// 선택된 영역 지정 (첫 선택 지정)
@@ -708,17 +699,16 @@ public class Frame {
 	
 	public ArrayList<Integer> selected() {
 		ArrayList<Integer> a = new ArrayList<Integer>();
-		ShapeObject so = shapes.get(shapes.size()-1);
 		
 		// 선택된 영역의 x, y 좌표들
-		int min_x = Math.min(so.start.x, so.end.x);
-		int min_y = Math.min(so.start.y, so.end.y);
-		int max_x = Math.max(so.start.x, so.end.x);
-		int max_y = Math.max(so.start.y, so.end.y);
+		int min_x = Math.min(drag.start.x, drag.end.x);
+		int min_y = Math.min(drag.start.y, drag.end.y);
+		int max_x = Math.max(drag.start.x, drag.end.x);
+		int max_y = Math.max(drag.start.y, drag.end.y);
 		
 		
-		for(int i=0; i<shapes.size()-1; i++) {
-			so = shapes.get(i);
+		for(int i=0; i<shapes.size(); i++) {
+			ShapeObject so = shapes.get(i);
 			if(so.shape == LINE) {
 				int x1 = Math.min(so.start.x, so.end.x);
 				int y1 = Math.min(so.start.y, so.end.y);
@@ -729,17 +719,7 @@ public class Frame {
 					a.add(i);
 				}
 			}
-			else if(so.shape == RECT) {
-				int x1 = Math.min(so.start.x, so.end.x);
-				int y1 = Math.min(so.start.y, so.end.y);
-				int x2 = Math.max(so.start.x, so.end.x);
-				int y2 = Math.max(so.start.y, so.end.y);
-				
-				if(x1>min_x && x2<max_x && y1>min_y && y2<max_y) {
-					a.add(i);
-				}
-			}
-			else if(so.shape == CIRCLE) {
+			else if(so.shape == RECT || so.shape == CIRCLE) {
 				int x1 = Math.min(so.start.x, so.end.x);
 				int y1 = Math.min(so.start.y, so.end.y);
 				int x2 = Math.max(so.start.x, so.end.x);
@@ -814,26 +794,46 @@ public class Frame {
 				max_x = (Math.max(so.start.x, so.end.x)>max_x) ? Math.max(so.start.x, so.end.x):max_x;
 				max_y = (Math.max(so.start.y, so.end.y)>max_y) ? Math.max(so.start.y, so.end.y):max_y;
 			}
-			else if(so.shape == RECT) {
+			else if(so.shape == RECT || so.shape == CIRCLE) {
 				min_x = (so.start.x<min_x) ? so.start.x:min_x;
 				min_y = (so.start.y<min_y) ? so.start.y:min_y;
 				max_x = (so.end.x>max_x) ? so.end.x:max_x;
 				max_y = (so.end.y>max_y) ? so.end.y:max_y;
+			}
+			else if(so.shape == POLYLINE) {
+				// polyline을 이루는 점들의 좌표 들로 이루어진 점들 중에 왼쪽 위와 오른쪽 아래의 점 구하기
+				for(int j=0; j<so.x.length; j++) {
+					if(min_x>so.x[j]) min_x = so.x[j];
+					else if(max_x<so.x[j]) max_x = so.x[j];
+					
+					if(min_y>so.y[j]) min_y = so.y[j];
+					else if(max_y<so.y[j]) max_y = so.y[j];
+					
+				}
+			}
+			else if(so.shape == PEN) {
+				for(int j=0; j<so.x.length; j++) {
+					if(min_x>so.x[j]) min_x = so.x[j];
+					else if(max_x<so.x[j]) max_x = so.x[j];
+					
+					if(min_y>so.y[j]) min_y = so.y[j];
+					else if(max_y<so.y[j]) max_y = so.y[j];
+					
+				}
 			}
 		}
 		
 		if(now.x>min_x && now.x<max_x && now.y>min_y && now.y<max_y) {
 			return true;
 		}
-		
-		
 		return false;
 	}
 	
 	public void moveShape(ShapeObject so, Point now) { // so: 이동해야할 shape, now: 현재 위치
-		ShapeObject s = shapes.get(shapes.size()-1); // 그간 이동했던 위치 저장된 object
-		int x_dif = now.x - s.doing.get(s.doing.size()-2).x;
-		int y_dif = now.y - s.doing.get(s.doing.size()-2).y;
+		int x_dif = now.x - drag.doing.get(drag.doing.size()-2).x;
+		int y_dif = now.y - drag.doing.get(drag.doing.size()-2).y;
+		
+//		System.out.println("x_dif: " + x_dif + " y_dif: " + y_dif);
 		
 		if(so.shape == LINE) {
 
@@ -842,24 +842,35 @@ public class Frame {
 			so.end.x += x_dif;
 			so.end.y += y_dif;
 			
-//			so.start.x += now.x - initPoint.x;
-//			so.start.y += now.y - initPoint.y;
-//			so.end.x += now.x - initPoint.x;
 //			so.end.y += now.y - initPoint.y;
 //			System.out.println("now.x: " + now.x + " now.y: " + now.y);
 //			System.out.println("initPoint.x: " + initPoint.x + " initPoint.y: " + initPoint.y);
 //			System.out.println("x_dif: " + x_dif + " y_dif: " + y_dif);
 //			System.out.println("so.start.x: " + so.start.x + " so.start.y: " + so.start.y + " so.end.x: " + so.end.x + " so.end.y: " + so.end.y);
 		}
-		else if(so.shape == RECT) {
-			
+		else if(so.shape == RECT || so.shape == CIRCLE) {
 			so.start.x += x_dif;
 			so.start.y += y_dif;
 			so.end.x += x_dif;
 			so.end.y += y_dif;
-			System.out.println("moved shape: " + so.shape);
+//			System.out.println("x_dif: " + x_dif + " y_dif: " + y_dif);
+//			System.out.println("Rect start, end: " + so.start.x + " " + so.start.y + " " + so.end.x + " " + so.end.y);
 		}
-//		System.out.println("moved shape: " + so.shape);
+		else if(so.shape == POLYLINE) {
+			for(int j=0; j<so.x.length; j++) {
+//				System.out.println("x[" + j + "]: " + so.x[j]);
+				so.x[j] += x_dif;
+				so.y[j] += y_dif;
+			}
+			
+		}
+		else if(so.shape == PEN) {
+			for(int j=0; j<so.x.length; j++) {
+//				System.out.println("x[" + j + "]: " + so.x[j]);
+				so.x[j] += x_dif;
+				so.y[j] += y_dif;
+			}
+		}
 	}
 }
 
