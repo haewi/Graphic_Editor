@@ -33,6 +33,7 @@ public class Frame {
 	public static final int SELECT = 8;
 	public static final int COPY = 9;
 	public static final int PASTE = 10;
+	public static final int DRAG = 11;
 
 	// 선택한 기능
 	public int function = DEFAULT;
@@ -60,7 +61,10 @@ public class Frame {
 	// 선택된 도형들의 index, select
 	ArrayList<Integer> select = new ArrayList<Integer>();//null;
 	boolean move=false;
-	ShapeObject drag = new ShapeObject(); 
+	ShapeObject drag = new ShapeObject();
+	
+	// 복사한 도형들
+	ArrayList<ShapeObject> copied = new ArrayList<ShapeObject>(); 
 	
 
 	public Frame() {
@@ -398,15 +402,36 @@ public class Frame {
 				}
 			}
 			else if(str.equals("Copy")) {
-				if(function == COPY) {
+				function = DEFAULT;
+				mode.setText("DEFAULT");
+				if(select.isEmpty()) {
+					function = SELECT;
+					mode.setText("SELECT");
+					return;
+				}
+				copied.clear();
+				for(int i=0; i<select.size(); i++) {
+//					System.out.println("select.size(): " + select.size());
+					copied.add(ShapeObject.copy(shapes.get(select.get(i))));
+//					System.out.println("copied.size(): " + copied.size());
+				}
+			}
+			else if(str.equals("Paste")) {
+				if(function == PASTE) {
 					function = DEFAULT;
 					mode.setText("DEFAULT");
 				}
 				else {
-					function = COPY;
-					mode.setText("SELECT");
+					function = PASTE;
+					mode.setText("PASTE");
+					
+					for(int i=0; i<copied.size(); i++) {
+						ShapeObject so = ShapeObject.copy(copied.get(i));
+						copied.set(i, so);
+					}
 				}
 			}
+			
 			
 			if(function != POLYLINE) {
 				for(ShapeObject s: shapes) {
@@ -416,12 +441,16 @@ public class Frame {
 					}
 				}
 			}
+			if(function != SELECT || function != PASTE) {
+				select.clear();
+				canvas.repaint();
+			}
 		}
 
 	}
 
 	public class MouseListen extends MouseAdapter implements MouseListener {
-
+		
 		ShapeObject newShape;
 
 		@Override
@@ -542,7 +571,13 @@ public class Frame {
 				
 			}
 			else if(function == PASTE) {
-				if(select.isEmpty()) return;
+//				System.out.println("3: " + copied.size());
+				if(copied.isEmpty()) return;
+				
+				function = DEFAULT;
+				mode.setText("DEFAULT");
+				canvas.repaint();
+				drag.doing.clear();
 			}
 		}
 
@@ -593,6 +628,7 @@ public class Frame {
 			else if(function == SELECT) {
 				if(move) { // 도형 이동시키기
 					for(int i=0; i<select.size(); i++) {
+//						System.out.println("Select2: ");
 						moveShape(shapes.get(select.get(i)), e.getPoint());
 					}
 					select.clear();
@@ -607,6 +643,9 @@ public class Frame {
 				drag.shape =0;
 				canvas.repaint();
 //				System.out.println("final select: " + select.size());
+			}
+			else if(function == COPY) {
+				
 			}
 		}
 
@@ -648,6 +687,7 @@ public class Frame {
 				if(move) { 
 					drag.doing.add(e.getPoint()); // 이동하는 위치 저장
 					for(int i=0; i<select.size(); i++) {
+//						System.out.println("Select1: " + select.get(i));
 						moveShape(shapes.get(select.get(i)), e.getPoint());
 //						System.out.println("moved shape: " + shapes.get(select.get(i)).shape);
 					}
@@ -673,6 +713,38 @@ public class Frame {
 				canvas.repaint();
 			}
 			
+		}
+		
+
+		@Override
+		public void mouseEntered(MouseEvent e) {
+			super.mouseEntered(e);
+			
+			if(function == PASTE) {
+				drag.doing.add(e.getPoint()); // 이동하는 위치 저장
+				adjustLocation(copied, e.getPoint());
+				for(int i=0; i<copied.size(); i++) {
+					shapes.add(copied.get(i));
+				}
+			}
+		}
+
+		@Override
+		public void mouseMoved(MouseEvent e) {
+			six=0;
+			super.mouseEntered(e);
+			
+			if(function == PASTE) {
+				drag.doing.add(e.getPoint()); // 이동하는 위치 저장
+				
+				for(int i=0; i<copied.size(); i++) {
+//					System.out.println("Paste: ");
+//					System.out.println("Copied: " + copied.size());
+					moveShape(copied.get(i), e.getPoint());
+				}
+				
+				canvas.repaint();
+			}
 		}
 
 	}
@@ -833,10 +905,8 @@ public class Frame {
 		int x_dif = now.x - drag.doing.get(drag.doing.size()-2).x;
 		int y_dif = now.y - drag.doing.get(drag.doing.size()-2).y;
 		
-//		System.out.println("x_dif: " + x_dif + " y_dif: " + y_dif);
 		
 		if(so.shape == LINE) {
-
 			so.start.x += x_dif;
 			so.start.y += y_dif;
 			so.end.x += x_dif;
@@ -866,11 +936,99 @@ public class Frame {
 		}
 		else if(so.shape == PEN) {
 			for(int j=0; j<so.x.length; j++) {
-//				System.out.println("x[" + j + "]: " + so.x[j]);
 				so.x[j] += x_dif;
 				so.y[j] += y_dif;
 			}
 		}
+	}
+	
+	private void adjustLocation(ArrayList<ShapeObject> relocate, Point mouse) {
+		
+//		ArrayList<Point> diff = new ArrayList<Point>();
+//		
+//		diff.add(null);
+		
+		Point diff;
+		
+		Point p = findPoint(relocate.get(0));
+		
+		diff = new Point(mouse.x-p.x, mouse.y-p.y);
+		
+		for(int i=0; i<relocate.size(); i++) {
+			ShapeObject so = relocate.get(i);
+			
+			if(so.shape == LINE) {
+				so.start.x += diff.x;
+				so.start.y += diff.y;
+				so.end.x += diff.x;
+				so.end.y += diff.y;
+				
+//				so.end.y += now.y - initPoint.y;
+//				System.out.println("now.x: " + now.x + " now.y: " + now.y);
+//				System.out.println("initPoint.x: " + initPoint.x + " initPoint.y: " + initPoint.y);
+//				System.out.println("diff.x: " + diff.x + " diff.y: " + diff.y);
+//				System.out.println("so.start.x: " + so.start.x + " so.start.y: " + so.start.y + " so.end.x: " + so.end.x + " so.end.y: " + so.end.y);
+			}
+			else if(so.shape == RECT || so.shape == CIRCLE) {
+				so.start.x += diff.x;
+				so.start.y += diff.y;
+				so.end.x += diff.x;
+				so.end.y += diff.y;
+//				System.out.println("diff.x: " + diff.x + " diff.y: " + diff.y);
+//				System.out.println("Rect start, end: " + so.start.x + " " + so.start.y + " " + so.end.x + " " + so.end.y);
+			}
+			else if(so.shape == POLYLINE) {
+				for(int j=0; j<so.x.length; j++) {
+//					System.out.println("x[" + j + "]: " + so.x[j]);
+					so.x[j] += diff.x;
+					so.y[j] += diff.y;
+				}
+				
+			}
+			else if(so.shape == PEN) {
+				for(int j=0; j<so.x.length; j++) {
+					so.x[j] += diff.x;
+					so.y[j] += diff.y;
+				}
+			}
+			
+		}
+		
+	}
+
+	private Point findPoint(ShapeObject so) {
+		
+		int min_x = 800;
+		int min_y = 600;
+		
+		// 가장 작은 x, y값과 가장 큰 x, y값 구하기
+		if(so.shape == LINE) {
+			min_x = (Math.min(so.start.x, so.end.x)<min_x) ? Math.min(so.start.x, so.end.x):min_x;
+			min_y = (Math.min(so.start.y, so.end.y)<min_y) ? Math.min(so.start.y, so.end.y):min_y;
+		}
+		else if(so.shape == RECT || so.shape == CIRCLE) {
+			min_x = (so.start.x<min_x) ? so.start.x:min_x;
+			min_y = (so.start.y<min_y) ? so.start.y:min_y;
+		}
+		else if(so.shape == POLYLINE) {
+			// polyline을 이루는 점들의 좌표 들로 이루어진 점들 중에 왼쪽 위와 오른쪽 아래의 점 구하기
+			for(int j=0; j<so.x.length; j++) {
+				if(min_x>so.x[j]) min_x = so.x[j];
+
+				if(min_y>so.y[j]) min_y = so.y[j];
+
+			}
+		}
+		else if(so.shape == PEN) {
+			for(int j=0; j<so.x.length; j++) {
+				if(min_x>so.x[j]) min_x = so.x[j];
+
+				if(min_y>so.y[j]) min_y = so.y[j];
+
+			}
+		}
+		
+		return new Point(min_x, min_y);
 	}
 }
 
