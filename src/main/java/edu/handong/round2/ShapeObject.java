@@ -2,6 +2,7 @@ package edu.handong.round2;
 
 import java.awt.Color;
 import java.awt.Point;
+import java.awt.Stroke;
 import java.util.ArrayList;
 import java.util.Stack;
 
