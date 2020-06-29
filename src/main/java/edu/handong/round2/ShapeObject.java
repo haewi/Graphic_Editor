@@ -8,6 +8,8 @@ import java.util.Stack;
 public class ShapeObject {
 	
 	int shape;
+	boolean fill = false;
+	boolean visible = true;
 	
 	Point start, end; // Line, Rect, Circle
 	int width, height; // Rect, Circle
@@ -19,7 +21,13 @@ public class ShapeObject {
 	
 	Stack<ShapeObject> clear = new Stack<ShapeObject>(); // 지워진 도형들
 	
+	// 이동된 거리 및 이동된 도형들 index
+	int dif_x, dif_y;
+	ArrayList<Integer> select = new ArrayList<Integer>();
+	
 //	ShapeObject link; // group된 shape object들
+	
+	
 	
 	public static ShapeObject copy(ShapeObject from) {
 		ShapeObject to = new ShapeObject();
@@ -27,6 +35,7 @@ public class ShapeObject {
 //		System.out.println("1" + (to == from));
 		
 		to.shape = from.shape;
+		to.fill = from.fill;
 		if(from.start != null) {
 			to.start = new Point(from.start.x, from.start.y);
 			to.end = new Point(from.end.x, from.end.y);
@@ -60,6 +69,12 @@ public class ShapeObject {
 		
 		for(int i=0; i<from.clear.size(); i++) {
 			to.clear.add(from.clear.get(i));
+		}
+		
+		to.dif_x = from.dif_x;
+		to.dif_y = from.dif_y;
+		for(int i=0; i<from.select.size(); i++) {
+			to.select.add(from.select.get(i));
 		}
 		
 //		System.out.println("6" + (to == from));
