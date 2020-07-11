@@ -72,6 +72,7 @@ public class Frame {
 	
 
 	public Frame() {
+		//mainFrame 기본설정
 		mainFrame = new JFrame("그림판");
 		mainFrame.setBounds(0, 200, 800, 600);
 		mainFrame.setVisible(true);
